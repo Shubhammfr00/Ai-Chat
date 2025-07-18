@@ -24,29 +24,36 @@ function App() {
 
   // Handlers
   const handleSubmit = useCallback(async (e) => {
-    e && e.preventDefault();
-    const inputText=input;
-    setInput("");
+  e && e.preventDefault();
+  const inputText = input;
+  setInput("");
 
-    if (!inputText.trim()) return;
-    setMessages((prev) => [...prev, { role: "user", text: inputText }]);
-    try {
-      const res = await axios.post("http://127.0.0.1:8000/chat", {
-        message: inputText,
-      });
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", text: res.data.response },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", text: "Error connecting to backend." },
-      ]);
-      console.error("Chat error:", err);
-    }
-    
-  }, [input]);
+  if (!inputText.trim()) return;
+  setMessages((prev) => [...prev, { role: "user", text: inputText }]);
+
+  // Automatically switch between local and production
+  const isLocalhost = window.location.hostname === "localhost";
+  const API_BASE_URL = isLocalhost
+    ? "http://127.0.0.1:8000"
+    : "https://ai-chat-y8no.onrender.com";
+
+  try {
+    const res = await axios.post(`${API_BASE_URL}/chat`, {
+      message: inputText,
+    });
+    setMessages((prev) => [
+      ...prev,
+      { role: "bot", text: res.data.response },
+    ]);
+  } catch (err) {
+    setMessages((prev) => [
+      ...prev,
+      { role: "bot", text: "Error connecting to backend." },
+    ]);
+    console.error("Chat error:", err);
+  }
+}, [input]);
+
 
   const handleReset = useCallback(() => {
     setMessages([]);
@@ -66,28 +73,36 @@ function App() {
   }, []);
 
   const handleFileUpload = useCallback(async (e) => {
-    e && e.preventDefault();
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    setUploadMessage("Uploading...");
+  e && e.preventDefault();
+  if (!file) return;
+
+  const isLocalhost = window.location.hostname === "localhost";
+  const API_BASE_URL = isLocalhost
+    ? "http://127.0.0.1:8000"
+    : "https://ai-chat-y8no.onrender.com";
+
+  const formData = new FormData();
+  formData.append("file", file);
+  setUploadMessage("Uploading...");
+  setUploadError(false);
+
+  try {
+    const res = await axios.post(`${API_BASE_URL}/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const botReply = res.data.message || "PDF uploaded successfully.";
+    setUploadMessage(botReply);
     setUploadError(false);
-    try {
-      const res = await axios.post("http://127.0.0.1:8000/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const botReply = res.data.message || "PDF uploaded successfully.";
-      setUploadMessage(botReply);
-      setUploadError(false);
-      setMessages((prev) => [...prev, { role: "bot", text: botReply }]);
-    } catch (err) {
-      const errMsg = "Error uploading PDF.";
-      setUploadMessage(errMsg);
-      setUploadError(true);
-      setMessages((prev) => [...prev, { role: "bot", text: errMsg }]);
-      console.error("Upload error:", err);
-    }
-  }, [file]);
+    setMessages((prev) => [...prev, { role: "bot", text: botReply }]);
+  } catch (err) {
+    const errMsg = "Error uploading PDF.";
+    setUploadMessage(errMsg);
+    setUploadError(true);
+    setMessages((prev) => [...prev, { role: "bot", text: errMsg }]);
+    console.error("Upload error:", err);
+  }
+}, [file]);
+
 
   // Memoized theme object
   const themeObj = useMemo(() => (theme === "light" ? light : dark), [theme]);
